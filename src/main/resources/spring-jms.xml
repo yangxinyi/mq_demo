@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+       http://www.springframework.org/schema/beans/spring-beans.xsd
+       http://www.springframework.org/schema/context
+       http://www.springframework.org/schema/context/spring-context.xsd">
+
+    <context:component-scan base-package="com.winxuan.mq_demo"/>
+
+    <bean id="jmsConnectionFactory" class="org.apache.activemq.pool.PooledConnectionFactory" destroy-method="stop">
+        <property name="connectionFactory">
+            <bean id="targetConnectionFactory" class="org.apache.activemq.ActiveMQConnectionFactory">
+                <property name="brokerURL"
+                          value="failover:(tcp://10.100.12.111:61616,tcp://10.100.12.112:61616)"/>
+                <!--慢消费者设置为true, 快消费者设置为false-->
+                <property name="dispatchAsync" value="true"></property>
+                <property name="useAsyncSend" value="true"></property>
+            </bean>
+        </property>
+        <property name="maxConnections" value="100"></property>
+
+    </bean>
+
+    <bean id="jmsTemplate" class="org.springframework.jms.core.JmsTemplate">
+        <property name="connectionFactory" ref="jmsConnectionFactory"></property>
+        <property name="defaultDestination" ref="queueDestination"></property>
+    </bean>
+
+    <!-- 消息队列 -->
+    <bean id="queueDestination" class="org.apache.activemq.command.ActiveMQQueue">
+        <constructor-arg value="p2p-queue"></constructor-arg>
+    </bean>
+
+    <!-- 消息监听容器 -->
+    <!--1. 从哪监听 connectionFactory-->
+    <!--2. 监听的消息队列 destination-->
+    <!--3. 接收消息后的消息处理 messageListener-->
+    <bean id="jmsContainer" class="org.springframework.jms.listener.DefaultMessageListenerContainer">
+        <property name="connectionFactory" ref="jmsConnectionFactory"></property>
+        <property name="destination" ref="queueDestination"></property>
+        <property name="messageListener" ref="consumerListener"></property>
+        <!--此处不使用事务-->
+        <property name="sessionTransacted" value="false"></property>
+    </bean>
+
+</beans>
